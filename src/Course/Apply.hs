@@ -207,8 +207,9 @@ lift4 f a b c d = f <$> a <*> b <*> c <*> d
   f a
   -> f b
   -> f b
-(*>) =
-  error "todo"
+-- (*>) a b = (flip const) <$> a <*> b
+(*>) = lift2 (flip const)
+
 
 -- | Sequence, discarding the value of the second argument.
 -- Pronounced, left apply.
@@ -216,7 +217,7 @@ lift4 f a b c d = f <$> a <*> b <*> c <*> d
 -- >>> [1,2,3] <* [4,5,6]
 -- [1,1,1,2,2,2,3,3,3]
 --
--- >>> [1,2] <* [4,5,6]
+-- >>>  [1,2] <* [4,5,6]
 -- [1,1,1,2,2,2]
 --
 -- >>> [1,2,3] <* [4,5]
@@ -233,8 +234,10 @@ lift4 f a b c d = f <$> a <*> b <*> c <*> d
   f b
   -> f a
   -> f b
-(<*) =
-  error "todo"
+-- (<*) b a =
+--      const <$> b <*> a
+(<*) = lift2 const
+-- lift2 f fa fb = (f <$> fa) <*> fb
 
 -----------------------
 -- SUPPORT LIBRARIES --
