@@ -387,6 +387,11 @@ listh ::
 listh =
   P.foldr (:.) Nil
 
+show' ::
+  Show a => a -> List Char
+show' =
+  listh . show
+
 putStr ::
   Chars
   -> IO ()

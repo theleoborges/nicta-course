@@ -452,7 +452,7 @@ thisMany ::
   -> Parser (List a)
 thisMany =
   replicateA
-
+-- sequence . (replicate)
 -- | Write a parser for Person.age.
 --
 -- /Age: positive integer/

@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RebindableSyntax #-}
 
 module Course.State where
 
@@ -35,8 +36,11 @@ newtype State s a =
 -- >>> runState ((+1) <$> pure 0) 0
 -- (1,0)
 instance Functor (State s) where
-  (<$>) =
-      error "todo"
+  (<$>) f (State sa) =
+      State(\s ->
+        let (a, s') = sa s
+        in (f a, s')
+      )
 
 -- | Implement the `Apply` instance for `State s`.
 -- >>> runState (pure (+1) <*> pure 0) 0
@@ -46,22 +50,32 @@ instance Functor (State s) where
 -- >>> runState (State (\s -> ((+3), s P.++ ["apple"])) <*> State (\s -> (7, s P.++ ["banana"]))) []
 -- (10,["apple","banana"])
 instance Apply (State s) where
-  (<*>) =
-    error "todo"
+  (<*>) (State fab) (State sa) =
+    State (\s ->
+      let (a,  s') = sa s
+          (ab, s'')  = fab s'
+      in (ab a, s'')
+    )
+
 
 -- | Implement the `Applicative` instance for `State s`.
 -- >>> runState (pure 2) 0
 -- (2,0)
 instance Applicative (State s) where
-  pure =
-    error "todo"
+  pure a =
+    State (\s -> (a, s))
 
 -- | Implement the `Bind` instance for `State s`.
 -- >>> runState ((const $ put 2) =<< put 1) 0
 -- ((),2)
 instance Bind (State s) where
-  (=<<) =
-    error "todo"
+  (=<<) f fa =
+    State (\s ->
+      let (a, s')  = runState fa s
+          (b, s'') =  runState (f a) s'
+      in (b, s'')
+    )
+
 
 instance Monad (State s) where
 
@@ -72,8 +86,9 @@ exec ::
   State s a
   -> s
   -> s
-exec =
-  error "todo"
+exec sa =
+  snd . (runState sa)
+
 
 -- | Run the `State` seeded with `s` and retrieve the resulting value.
 --
@@ -82,8 +97,8 @@ eval ::
   State s a
   -> s
   -> a
-eval =
-  error "todo"
+eval sa =
+  fst . (runState sa)
 
 -- | A `State` where the state also distributes into the produced value.
 --
@@ -92,7 +107,8 @@ eval =
 get ::
   State s s
 get =
-  error "todo"
+--  State (\s -> (s, s))
+  State (join (,))
 
 -- | A `State` where the resulting state is seeded with the given value.
 --
@@ -101,8 +117,8 @@ get =
 put ::
   s
   -> State s ()
-put =
-  error "todo"
+put seed =
+  State (\_ -> ((), seed))
 
 -- | Find the first element in a `List` that satisfies a given predicate.
 -- It is possible that no element is found, hence an `Optional` result.
@@ -123,8 +139,34 @@ findM ::
   (a -> f Bool)
   -> List a
   -> f (Optional a)
-findM =
-  error "todo"
+-- findM _ Nil = pure Empty
+-- findM f (x:.xs) = do
+--   b <- f x
+--   case b of
+--     True -> pure (Full x)
+--     _    -> findM f xs
+findM f as =
+  foldRight (\a acc -> do
+    b <- (f a)
+    case b of
+      True -> pure (Full a)
+      _    -> acc
+  ) (pure Empty) as
+
+
+xyz ::
+       Ord a1 =>
+       ((a1 -> State (S.Set a1) a)
+       -> t
+       -> State (S.Set a3) a2)
+       -> (a1 -> S.Set a1 -> a)
+       -> t
+       -> a2
+xyz f p list =
+  let r = f (\a -> State (lift2 (,) (p a) (S.insert a))) list
+  in eval r S.empty
+
+
 
 -- | Find the first element in a `List` that repeats.
 -- It is possible that no element repeats, hence an `Optional` result.
@@ -133,12 +175,23 @@ findM =
 --
 -- prop> case firstRepeat xs of Empty -> let xs' = hlist xs in nub xs' == xs'; Full x -> length (filter (== x) xs) > 1
 -- prop> case firstRepeat xs of Empty -> True; Full x -> let (l, (rx :. rs)) = span (/= x) xs in let (l2, r2) = span (/= x) rs in let l3 = hlist (l ++ (rx :. Nil) ++ l2) in nub l3 == l3
+-- import Data.Set
 firstRepeat ::
   Ord a =>
   List a
   -> Optional a
 firstRepeat =
-  error "todo"
+  xyz findM S.member
+
+  -- let r = findM (\a ->
+  --           State (\st -> (,) (S.member a st) (S.insert a st))
+  --         ) list
+  -- in eval r S.empty
+
+  -- let r = findM (\a ->
+  --           State (\st -> (S.member a st, S.insert a st))
+  --         ) list
+  -- in eval r S.empty
 
 -- | Remove all duplicate elements in a `List`.
 -- /Tip:/ Use `filtering` and `State` with a @Data.Set#Set@.
@@ -151,7 +204,7 @@ distinct ::
   List a
   -> List a
 distinct =
-  error "todo"
+  xyz filtering S.notMember
 
 -- | A happy number is a positive integer, where the sum of the square of its digits eventually reaches 1 after repetition.
 -- In contrast, a sad number (not a happy number) is where the sum of the square of its digits never reaches 1
@@ -178,4 +231,18 @@ isHappy ::
   Integer
   -> Bool
 isHappy =
-  error "todo"
+  let square = join (*)
+      happies = produce (sum' . (<$>) (square . toInteger . digitToInt) . show')
+      gotit = findM (\j -> State (\s -> (j == 1 || S.member j s, S.insert j s)))
+      runIt = (`eval` S.empty) . gotit . happies
+  in contains 1 . runIt
+
+
+
+
+
+sum' ::
+  Num a =>
+  List a
+  -> a
+sum' = foldLeft (+) 0

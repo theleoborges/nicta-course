@@ -153,8 +153,12 @@ filtering ::
   (a -> f Bool)
   -> List a
   -> f (List a)
-filtering = undefined
---  foldRight (lift2 (:.)) (pure Nil)
+filtering _ Nil = pure Nil
+filtering p (h:.t) =
+  (\b ->
+    if b then (h:.) else id)
+  <$> (p h)
+  <*> (filtering p t)
 
 -----------------------
 -- SUPPORT LIBRARIES --
