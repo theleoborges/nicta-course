@@ -1,5 +1,9 @@
 # Functional Programming Course
 
+## SPOILERS
+
+This repo contains exercises! Go to https://github.com/NICTA/course if you're looking for the exercises only.
+
 ![NICTA](http://i.imgur.com/sMXB9XB.jpg)
 
 ### Written by Tony Morris & Mark Hibberd for NICTA
